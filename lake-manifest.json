@@ -1,26 +1,33 @@
-{"version": "1.2.0",
- "packagesDir": ".lake/packages",
- "packages":
- [{"url": "https://github.com/kim-em/hex-matrix.git",
-   "type": "git",
-   "subDir": null,
-   "scope": "",
-   "rev": "3de422434b4565933a0315338e714f303bb6442f",
-   "name": "HexMatrix",
-   "manifestFile": "lake-manifest.json",
-   "inputRev": "3de422434b4565933a0315338e714f303bb6442f",
-   "inherited": false,
-   "configFile": "lakefile.toml"},
-  {"url": "https://github.com/leanprover-community/batteries.git",
-   "type": "git",
-   "subDir": null,
-   "scope": "",
-   "rev": "5c57f3857ba81924a88b2cdf4f062e34ec04ff11",
-   "name": "batteries",
-   "manifestFile": "lake-manifest.json",
-   "inputRev": "v4.30.0-rc2",
-   "inherited": true,
-   "configFile": "lakefile.toml"}],
- "name": "«hex-row-reduce»",
- "lakeDir": ".lake",
- "fixedToolchain": false}
+{
+  "version": "1.2.0",
+  "packagesDir": ".lake/packages",
+  "packages": [
+    {
+      "url": "https://github.com/kim-em/hex-matrix.git",
+      "type": "git",
+      "subDir": null,
+      "scope": "",
+      "rev": "93bc6617cbb4dab7dc04d18fc76b92090489b55e",
+      "name": "HexMatrix",
+      "manifestFile": "lake-manifest.json",
+      "inputRev": "93bc6617cbb4dab7dc04d18fc76b92090489b55e",
+      "inherited": false,
+      "configFile": "lakefile.toml"
+    },
+    {
+      "url": "https://github.com/leanprover-community/batteries.git",
+      "type": "git",
+      "subDir": null,
+      "scope": "",
+      "rev": "5c57f3857ba81924a88b2cdf4f062e34ec04ff11",
+      "name": "batteries",
+      "manifestFile": "lake-manifest.json",
+      "inputRev": "v4.30.0-rc2",
+      "inherited": true,
+      "configFile": "lakefile.toml"
+    }
+  ],
+  "name": "\u00abhex-row-reduce\u00bb",
+  "lakeDir": ".lake",
+  "fixedToolchain": false
+}
