@@ -1,0 +1,19 @@
+name = "hex-row-reduce-conformance"
+defaultTargets = ["HexRowReduceConformance", "hexrowreduce_emit_fixtures"]
+
+[[require]]
+name = "HexRowReduce"
+path = ".."
+
+[[require]]
+name = "hex-test-kit"
+git = "https://github.com/kim-em/hex-test-kit.git"
+rev = "597e6a3b68807ef0fdf23ba3f6ae31549124ce23"
+
+[[lean_lib]]
+name = "HexRowReduceConformance"
+globs = ["HexRowReduce.Conformance"]
+
+[[lean_exe]]
+name = "hexrowreduce_emit_fixtures"
+root = "HexRowReduce.EmitFixtures"
