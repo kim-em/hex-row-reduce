@@ -29,71 +29,6 @@ universe u
 namespace Matrix
 
 
-/-- Two fold-sums over `xs` agree when their summand functions `f` and `g` agree
-pointwise on `xs`; congruence for the fold-sum under the integrand, used to rewrite
-the summand in the row-echelon sum manipulations. -/
-private theorem foldl_sum_congr_aux {R : Type u} [Add R] {α : Type v}
-    (xs : List α) (f g : α → R) (acc : R)
-    (h : ∀ x ∈ xs, f x = g x) :
-    xs.foldl (fun acc x => acc + f x) acc =
-    xs.foldl (fun acc x => acc + g x) acc := by
-  induction xs generalizing acc with
-  | nil => rfl
-  | cons x xs ih =>
-    simp only [List.foldl_cons]
-    have hx : f x = g x := h x (by simp)
-    have hxs : ∀ y ∈ xs, f y = g y := fun y hy => h y (List.mem_cons_of_mem _ hy)
-    rw [hx]
-    exact ih (acc + g x) hxs
-
-/-- Left multiplication by `c` distributes through a fold-sum, scaling each summand
-`f x` to `c * f x` and the initial accumulator to `c * acc`; pulls a left scalar
-factor through the accumulating sum in the row-echelon rewrites. -/
-private theorem foldl_sum_mul_left_aux {R : Type u} [Lean.Grind.Ring R]
-    {α : Type v} (xs : List α) (f : α → R) (c acc : R) :
-    c * xs.foldl (fun acc x => acc + f x) acc =
-    xs.foldl (fun acc x => acc + c * f x) (c * acc) := by
-  induction xs generalizing acc with
-  | nil => simp
-  | cons x xs ih =>
-    simp only [List.foldl_cons]
-    rw [ih (acc := acc + f x)]
-    have hdist : c * (acc + f x) = c * acc + c * f x := by grind
-    rw [hdist]
-
-/-- Right multiplication by `c` distributes through a fold-sum, scaling each summand
-`f x` to `f x * c` and the initial accumulator to `acc * c`; pulls a right scalar
-factor through the accumulating sum in the row-echelon rewrites. -/
-private theorem foldl_sum_mul_right_aux {R : Type u} [Lean.Grind.Ring R]
-    {α : Type v} (xs : List α) (f : α → R) (c acc : R) :
-    xs.foldl (fun acc x => acc + f x) acc * c =
-    xs.foldl (fun acc x => acc + f x * c) (acc * c) := by
-  induction xs generalizing acc with
-  | nil => simp
-  | cons x xs ih =>
-    simp only [List.foldl_cons]
-    rw [ih (acc := acc + f x)]
-    have hdist : (acc + f x) * c = acc * c + f x * c := by grind
-    rw [hdist]
-
-/-- The fold-sum of a pointwise sum `f x + g x` splits into the two separate
-fold-sums, provided the starting accumulator splits as `acc = accF + accG`;
-additivity of the fold-sum over its summand in the row-echelon rewrites. -/
-private theorem foldl_sum_add_aux {R : Type u} [Lean.Grind.Ring R]
-    {α : Type v} (xs : List α) (f g : α → R) (acc accF accG : R)
-    (h : acc = accF + accG) :
-    xs.foldl (fun acc x => acc + (f x + g x)) acc =
-    xs.foldl (fun acc x => acc + f x) accF +
-    xs.foldl (fun acc x => acc + g x) accG := by
-  induction xs generalizing acc accF accG with
-  | nil =>
-    simp only [List.foldl_nil]
-    exact h
-  | cons x xs ih =>
-    simp only [List.foldl_cons]
-    apply ih (acc := acc + (f x + g x)) (accF := accF + f x) (accG := accG + g x)
-    rw [h]; grind
-
 /-- Pull a scalar multiple out of the left argument of a dot product when the
 left vector is given by `Vector.ofFn (fun k => s * v[k])`. -/
 private theorem dotProduct_smul_ofFn_left [Lean.Grind.Ring R]
@@ -101,11 +36,11 @@ private theorem dotProduct_smul_ofFn_left [Lean.Grind.Ring R]
     (Vector.ofFn fun k => s * v[k]).dotProduct w =
     s * v.dotProduct w := by
   unfold Vector.dotProduct
-  rw [foldl_sum_mul_left_aux (xs := List.finRange m)
-        (f := fun i => v[i] * w[i]) (c := s) (acc := 0)]
+  rw [← List.foldl_add_mul_left (xs := List.finRange m)
+        (f := fun i => v[i] * w[i]) (c := s) (z := 0)]
   have hzero : s * (0 : R) = 0 := by grind
   rw [hzero]
-  apply foldl_sum_congr_aux
+  apply List.foldl_add_congr
   intro i _
   have hofFn : (Vector.ofFn (fun k : Fin m => s * v[k]))[i] = s * v[i] := by
     simp
@@ -126,14 +61,14 @@ private theorem dotProduct_add_smul_ofFn_left [Lean.Grind.Ring R]
         (fun acc i => acc + (u[i] * w[i] + s * (v[i] * w[i]))) 0 from ?_]
   · -- Now split the sum
     have hzero : (0 : R) = 0 + s * 0 := by grind
-    rw [foldl_sum_add_aux (xs := List.finRange m)
+    rw [List.foldl_add_add_of_acc (xs := List.finRange m)
           (f := fun i => u[i] * w[i])
           (g := fun i => s * (v[i] * w[i]))
           (acc := 0) (accF := 0) (accG := s * 0) (h := by grind)]
     -- Pull s out of the second sum
-    rw [← foldl_sum_mul_left_aux (xs := List.finRange m)
-          (f := fun i => v[i] * w[i]) (c := s) (acc := 0)]
-  · apply foldl_sum_congr_aux
+    rw [List.foldl_add_mul_left (xs := List.finRange m)
+          (f := fun i => v[i] * w[i]) (c := s) (z := 0)]
+  · apply List.foldl_add_congr
     intro i _
     have hofFn : (Vector.ofFn (fun k : Fin m => u[k] + s * v[k]))[i] =
         u[i] + s * v[i] := by
@@ -152,13 +87,13 @@ private theorem dotProduct_add_smul_ofFn_right [Lean.Grind.CommRing R]
         (fun acc i => acc + u[i] * (Vector.ofFn fun k => v[k] + s * w[k])[i]) 0 =
       (List.finRange m).foldl
         (fun acc i => acc + (u[i] * v[i] + s * (u[i] * w[i]))) 0 from ?_]
-  · rw [foldl_sum_add_aux (xs := List.finRange m)
+  · rw [List.foldl_add_add_of_acc (xs := List.finRange m)
         (f := fun i => u[i] * v[i])
         (g := fun i => s * (u[i] * w[i]))
         (acc := 0) (accF := 0) (accG := s * 0) (h := by grind)]
-    rw [← foldl_sum_mul_left_aux (xs := List.finRange m)
-        (f := fun i => u[i] * w[i]) (c := s) (acc := 0)]
-  · apply foldl_sum_congr_aux
+    rw [List.foldl_add_mul_left (xs := List.finRange m)
+        (f := fun i => u[i] * w[i]) (c := s) (z := 0)]
+  · apply List.foldl_add_congr
     intro i _
     have hofFn : (Vector.ofFn (fun k : Fin m => v[k] + s * w[k]))[i] =
         v[i] + s * w[i] := by
@@ -177,13 +112,13 @@ private theorem dotProduct_add_smulRight_ofFn_right [Lean.Grind.Ring R]
         (fun acc i => acc + u[i] * (Vector.ofFn fun k => v[k] + w[k] * s)[i]) 0 =
       (List.finRange m).foldl
         (fun acc i => acc + (u[i] * v[i] + (u[i] * w[i]) * s)) 0 from ?_]
-  · rw [foldl_sum_add_aux (xs := List.finRange m)
+  · rw [List.foldl_add_add_of_acc (xs := List.finRange m)
           (f := fun i => u[i] * v[i])
           (g := fun i => (u[i] * w[i]) * s)
           (acc := 0) (accF := 0) (accG := 0 * s) (h := by grind)]
-    rw [← foldl_sum_mul_right_aux (xs := List.finRange m)
-          (f := fun i => u[i] * w[i]) (c := s) (acc := 0)]
-  · apply foldl_sum_congr_aux
+    rw [← List.foldl_add_mul_right (xs := List.finRange m)
+          (f := fun i => u[i] * w[i]) (c := s) (z := 0)]
+  · apply List.foldl_add_congr
     intro i _
     have hofFn : (Vector.ofFn (fun k : Fin m => v[k] + w[k] * s))[i] =
         v[i] + w[i] * s := by
@@ -489,9 +424,9 @@ theorem rowAdd_rowAdd_neg_left [Lean.Grind.Ring R]
     rw [getElem_rowAdd, if_neg hrd]
 
 private theorem leftMul_left_inverse_preserve [Lean.Grind.Ring R]
-    {S Sinv T : Matrix R n n} (hSinvS : Sinv * S = 1)
-    (hT : ∃ Tinv : Matrix R n n, Tinv * T = 1) :
-    ∃ Tinv' : Matrix R n n, Tinv' * (S * T) = 1 := by
+    {S Sinv T : Matrix R n n} (hSinvS : Sinv * S = (Matrix.identity (R := R) n))
+    (hT : ∃ Tinv : Matrix R n n, Tinv * T = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, Tinv' * (S * T) = (Matrix.identity (R := R) n) := by
   rcases hT with ⟨Tinv, hTinv⟩
   refine ⟨Tinv * Sinv, ?_⟩
   calc
@@ -499,16 +434,16 @@ private theorem leftMul_left_inverse_preserve [Lean.Grind.Ring R]
       exact (mul_assoc (Tinv * Sinv) S T).symm
     _ = (Tinv * (Sinv * S)) * T := by
       rw [mul_assoc Tinv Sinv S]
-    _ = (Tinv * 1) * T := by
+    _ = (Tinv * (Matrix.identity (R := R) n)) * T := by
       rw [hSinvS]
     _ = Tinv * T := by
-      rw [mul_one]
-    _ = 1 := hTinv
+      rw [mul_identity]
+    _ = (Matrix.identity (R := R) n) := hTinv
 
 private theorem leftMul_right_inverse_preserve [Lean.Grind.Ring R]
-    {S Sinv T : Matrix R n n} (hSSinv : S * Sinv = 1)
-    (hT : ∃ Tinv : Matrix R n n, T * Tinv = 1) :
-    ∃ Tinv' : Matrix R n n, (S * T) * Tinv' = 1 := by
+    {S Sinv T : Matrix R n n} (hSSinv : S * Sinv = (Matrix.identity (R := R) n))
+    (hT : ∃ Tinv : Matrix R n n, T * Tinv = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, (S * T) * Tinv' = (Matrix.identity (R := R) n) := by
   rcases hT with ⟨Tinv, hTinv⟩
   refine ⟨Tinv * Sinv, ?_⟩
   calc
@@ -516,91 +451,91 @@ private theorem leftMul_right_inverse_preserve [Lean.Grind.Ring R]
       exact mul_assoc S T (Tinv * Sinv)
     _ = S * ((T * Tinv) * Sinv) := by
       rw [mul_assoc]
-    _ = S * (1 * Sinv) := by
+    _ = S * ((Matrix.identity (R := R) n) * Sinv) := by
       rw [hTinv]
     _ = S * Sinv := by
-      rw [one_mul]
-    _ = 1 := hSSinv
+      rw [identity_mul]
+    _ = (Matrix.identity (R := R) n) := hSSinv
 
 /-- A row swap preserves existence of a left inverse for a row transform. -/
 theorem rowSwap_left_inverse_preserve [Lean.Grind.Ring R]
     (T : Matrix R n n) (i j : Fin n)
-    (hT : ∃ Tinv : Matrix R n n, Tinv * T = 1) :
-    ∃ Tinv' : Matrix R n n, Tinv' * rowSwap T i j = 1 := by
-  let S : Matrix R n n := rowSwap (1 : Matrix R n n) i j
+    (hT : ∃ Tinv : Matrix R n n, Tinv * T = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, Tinv' * rowSwap T i j = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowSwap (Matrix.identity (R := R) n) i j
   have hS : S * T = rowSwap T i j := by
-    simp [S, rowSwap_mul, one_mul]
-  have hSS : S * S = 1 := by
-    simp [S, rowSwap_mul, one_mul, rowSwap_rowSwap]
+    simp [S, rowSwap_mul, identity_mul]
+  have hSS : S * S = (Matrix.identity (R := R) n) := by
+    simp [S, rowSwap_mul, identity_mul, rowSwap_rowSwap]
   simpa [hS] using leftMul_left_inverse_preserve (S := S) (Sinv := S) (T := T) hSS hT
 
 /-- A row swap preserves existence of a right inverse for a row transform. -/
 theorem rowSwap_right_inverse_preserve [Lean.Grind.Ring R]
     (T : Matrix R n n) (i j : Fin n)
-    (hT : ∃ Tinv : Matrix R n n, T * Tinv = 1) :
-    ∃ Tinv' : Matrix R n n, rowSwap T i j * Tinv' = 1 := by
-  let S : Matrix R n n := rowSwap (1 : Matrix R n n) i j
+    (hT : ∃ Tinv : Matrix R n n, T * Tinv = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, rowSwap T i j * Tinv' = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowSwap (Matrix.identity (R := R) n) i j
   have hS : S * T = rowSwap T i j := by
-    simp [S, rowSwap_mul, one_mul]
-  have hSS : S * S = 1 := by
-    simp [S, rowSwap_mul, one_mul, rowSwap_rowSwap]
+    simp [S, rowSwap_mul, identity_mul]
+  have hSS : S * S = (Matrix.identity (R := R) n) := by
+    simp [S, rowSwap_mul, identity_mul, rowSwap_rowSwap]
   simpa [hS] using leftMul_right_inverse_preserve (S := S) (Sinv := S) (T := T) hSS hT
 
 /-- Scaling a row by a nonzero scalar preserves existence of a left inverse for
 a row transform. -/
 theorem rowScale_left_inverse_preserve [Lean.Grind.Field R]
     (T : Matrix R n n) (i : Fin n) {s : R} (hs : s ≠ 0)
-    (hT : ∃ Tinv : Matrix R n n, Tinv * T = 1) :
-    ∃ Tinv' : Matrix R n n, Tinv' * rowScale T i s = 1 := by
-  let S : Matrix R n n := rowScale (1 : Matrix R n n) i s
-  let Sinv : Matrix R n n := rowScale (1 : Matrix R n n) i s⁻¹
+    (hT : ∃ Tinv : Matrix R n n, Tinv * T = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, Tinv' * rowScale T i s = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowScale (Matrix.identity (R := R) n) i s
+  let Sinv : Matrix R n n := rowScale (Matrix.identity (R := R) n) i s⁻¹
   have hS : S * T = rowScale T i s := by
-    simp [S, rowScale_mul, one_mul]
-  have hSinvS : Sinv * S = 1 := by
-    simp [Sinv, S, rowScale_mul, one_mul, rowScale_rowScale_inv_left _ _ hs]
+    simp [S, rowScale_mul, identity_mul]
+  have hSinvS : Sinv * S = (Matrix.identity (R := R) n) := by
+    simp [Sinv, S, rowScale_mul, identity_mul, rowScale_rowScale_inv_left _ _ hs]
   simpa [hS] using leftMul_left_inverse_preserve (S := S) (Sinv := Sinv) (T := T) hSinvS hT
 
 /-- Scaling a row by a nonzero scalar preserves existence of a right inverse for
 a row transform. -/
 theorem rowScale_right_inverse_preserve [Lean.Grind.Field R]
     (T : Matrix R n n) (i : Fin n) {s : R} (hs : s ≠ 0)
-    (hT : ∃ Tinv : Matrix R n n, T * Tinv = 1) :
-    ∃ Tinv' : Matrix R n n, rowScale T i s * Tinv' = 1 := by
-  let S : Matrix R n n := rowScale (1 : Matrix R n n) i s
-  let Sinv : Matrix R n n := rowScale (1 : Matrix R n n) i s⁻¹
+    (hT : ∃ Tinv : Matrix R n n, T * Tinv = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, rowScale T i s * Tinv' = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowScale (Matrix.identity (R := R) n) i s
+  let Sinv : Matrix R n n := rowScale (Matrix.identity (R := R) n) i s⁻¹
   have hS : S * T = rowScale T i s := by
-    simp [S, rowScale_mul, one_mul]
-  have hSSinv : S * Sinv = 1 := by
-    simp [S, Sinv, rowScale_mul, one_mul, rowScale_rowScale_inv_right _ _ hs]
+    simp [S, rowScale_mul, identity_mul]
+  have hSSinv : S * Sinv = (Matrix.identity (R := R) n) := by
+    simp [S, Sinv, rowScale_mul, identity_mul, rowScale_rowScale_inv_right _ _ hs]
   simpa [hS] using leftMul_right_inverse_preserve (S := S) (Sinv := Sinv) (T := T) hSSinv hT
 
 /-- Adding a multiple of a distinct source row preserves existence of a left
 inverse for a row transform. -/
 theorem rowAdd_left_inverse_preserve [Lean.Grind.Ring R]
     (T : Matrix R n n) {src dst : Fin n} (s : R) (hsrcdst : src ≠ dst)
-    (hT : ∃ Tinv : Matrix R n n, Tinv * T = 1) :
-    ∃ Tinv' : Matrix R n n, Tinv' * rowAdd T src dst s = 1 := by
-  let S : Matrix R n n := rowAdd (1 : Matrix R n n) src dst s
-  let Sinv : Matrix R n n := rowAdd (1 : Matrix R n n) src dst (-s)
+    (hT : ∃ Tinv : Matrix R n n, Tinv * T = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, Tinv' * rowAdd T src dst s = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowAdd (Matrix.identity (R := R) n) src dst s
+  let Sinv : Matrix R n n := rowAdd (Matrix.identity (R := R) n) src dst (-s)
   have hS : S * T = rowAdd T src dst s := by
-    simp [S, rowAdd_mul, one_mul]
-  have hSinvS : Sinv * S = 1 := by
-    simp [Sinv, S, rowAdd_mul, one_mul, rowAdd_rowAdd_neg _ _ hsrcdst]
+    simp [S, rowAdd_mul, identity_mul]
+  have hSinvS : Sinv * S = (Matrix.identity (R := R) n) := by
+    simp [Sinv, S, rowAdd_mul, identity_mul, rowAdd_rowAdd_neg _ _ hsrcdst]
   simpa [hS] using leftMul_left_inverse_preserve (S := S) (Sinv := Sinv) (T := T) hSinvS hT
 
 /-- Adding a multiple of a distinct source row preserves existence of a right
 inverse for a row transform. -/
 theorem rowAdd_right_inverse_preserve [Lean.Grind.Ring R]
     (T : Matrix R n n) {src dst : Fin n} (s : R) (hsrcdst : src ≠ dst)
-    (hT : ∃ Tinv : Matrix R n n, T * Tinv = 1) :
-    ∃ Tinv' : Matrix R n n, rowAdd T src dst s * Tinv' = 1 := by
-  let S : Matrix R n n := rowAdd (1 : Matrix R n n) src dst s
-  let Sinv : Matrix R n n := rowAdd (1 : Matrix R n n) src dst (-s)
+    (hT : ∃ Tinv : Matrix R n n, T * Tinv = (Matrix.identity (R := R) n)) :
+    ∃ Tinv' : Matrix R n n, rowAdd T src dst s * Tinv' = (Matrix.identity (R := R) n) := by
+  let S : Matrix R n n := rowAdd (Matrix.identity (R := R) n) src dst s
+  let Sinv : Matrix R n n := rowAdd (Matrix.identity (R := R) n) src dst (-s)
   have hS : S * T = rowAdd T src dst s := by
-    simp [S, rowAdd_mul, one_mul]
-  have hSSinv : S * Sinv = 1 := by
-    simp [S, Sinv, rowAdd_mul, one_mul]
-    exact rowAdd_rowAdd_neg_left (1 : Matrix R n n) s hsrcdst
+    simp [S, rowAdd_mul, identity_mul]
+  have hSSinv : S * Sinv = (Matrix.identity (R := R) n) := by
+    simp [S, Sinv, rowAdd_mul, identity_mul]
+    exact rowAdd_rowAdd_neg_left (Matrix.identity (R := R) n) s hsrcdst
   simpa [hS] using leftMul_right_inverse_preserve (S := S) (Sinv := Sinv) (T := T) hSSinv hT
 
 /-- Multiplication by `A` commutes with the column-add operation on the right

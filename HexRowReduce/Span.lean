@@ -55,7 +55,7 @@ forward transport at the candidate witness. -/
 theorem rowCombination_transformInv_transpose [Lean.Grind.CommRing R]
     {M : Matrix R n m} {D : RowEchelonData R n m}
     (E : IsEchelonForm M D) {Tinv : Matrix R n n}
-    (hTinv : Tinv * D.transform = 1) (c : Vector R n) :
+    (hTinv : Tinv * D.transform = (Matrix.identity (R := R) n)) (c : Vector R n) :
     rowCombination D.echelon (Matrix.transpose Tinv * c) = rowCombination M c := by
   have hcompose :
       Matrix.transpose D.transform * (Matrix.transpose Tinv * c) = c := by
@@ -66,11 +66,11 @@ theorem rowCombination_transformInv_transpose [Lean.Grind.CommRing R]
               (B := Matrix.transpose Tinv) (v := c)).symm
       _ = Matrix.transpose (Tinv * D.transform) * c := by
             rw [← Matrix.transpose_mul_of_mul_comm]
-      _ = Matrix.transpose (1 : Matrix R n n) * c := by
+      _ = Matrix.transpose (Matrix.identity (R := R) n) * c := by
             rw [hTinv]
-      _ = (1 : Matrix R n n) * c := by
-            rw [Matrix.transpose_one]
-      _ = c := Matrix.one_mulVec c
+      _ = (Matrix.identity (R := R) n) * c := by
+            rw [Matrix.transpose_identity]
+      _ = c := Matrix.identity_mulVec c
   have hforward := E.rowCombination_transform_transpose (e := Matrix.transpose Tinv * c)
   rw [hcompose] at hforward
   exact hforward.symm
@@ -167,37 +167,6 @@ theorem hasNonzeroPivots [Lean.Grind.Field R]
 
 variable {M : Matrix R n m} {D : RowEchelonData R n m}
 
-private theorem foldl_add_eq_acc_ring {R : Type u} [Lean.Grind.Ring R]
-    {α : Type v} (xs : List α) (f : α → R) (acc : R)
-    (hf : ∀ x ∈ xs, f x = 0) :
-    xs.foldl (fun acc x => acc + f x) acc = acc := by
-  induction xs generalizing acc with
-  | nil =>
-      simp only [List.foldl_nil]
-  | cons x xs ih =>
-      simp only [List.foldl_cons]
-      have hx : f x = 0 := hf x (by simp)
-      have hxs : ∀ y ∈ xs, f y = 0 := fun y hy => hf y (List.mem_cons_of_mem _ hy)
-      rw [hx]
-      have hac : acc + (0 : R) = acc := by grind
-      rw [hac]
-      exact ih acc hxs
-
-private theorem foldl_sum_congr {R : Type u} [Add R]
-    {α : Type v} (xs : List α) (f g : α → R) (acc : R)
-    (h : ∀ x ∈ xs, f x = g x) :
-    xs.foldl (fun acc x => acc + f x) acc =
-      xs.foldl (fun acc x => acc + g x) acc := by
-  induction xs generalizing acc with
-  | nil =>
-      rfl
-  | cons x xs ih =>
-      simp only [List.foldl_cons]
-      have hx : f x = g x := h x (by simp)
-      have hxs : ∀ y ∈ xs, f y = g y := fun y hy => h y (List.mem_cons_of_mem _ hy)
-      rw [hx]
-      exact ih (acc + g x) hxs
-
 private theorem foldl_indicator_mul_unique {R : Type u} [Lean.Grind.Ring R]
     {n : Nat} (xs : List (Fin n)) (i : Fin n) (f : Fin n → R)
     (hi : i ∈ xs) (hnodup : xs.Nodup) (acc : R) :
@@ -216,7 +185,7 @@ private theorem foldl_indicator_mul_unique {R : Type u} [Lean.Grind.Ring R]
           have hxy : x ≠ y := fun heq => (List.nodup_cons.mp hnodup).1 (heq ▸ hy)
           rw [if_neg hxy]
           grind
-        rw [if_pos rfl, foldl_add_eq_acc_ring xs _ _ hxs_zero]
+        rw [if_pos rfl, List.foldl_add_eq_self xs _ _ hxs_zero]
         grind
       · have hxi : i ≠ x := by
           intro heq
@@ -265,7 +234,7 @@ theorem rowCombination_single {R : Type u} [Lean.Grind.CommRing R]
             (Vector.ofFn fun l : Fin n => if i = l then (1 : R) else 0)[l]) 0 =
         (List.finRange n).foldl
           (fun acc l => acc + (if i = l then (1 : R) else 0) * M[l][jf]) 0 := by
-    apply foldl_sum_congr
+    apply List.foldl_add_congr
     intro l _hl
     by_cases hil : i = l
     · simp [hil, Lean.Grind.CommSemiring.mul_comm]
@@ -337,7 +306,7 @@ private theorem rowCombination_pivotCoeff [Lean.Grind.Field R] (E : IsRowReduced
         (List.finRange n).foldl
           (fun acc i =>
             acc + (if E.toIsEchelonForm.pivotRow p = i then (1 : R) else 0) * c[i]) 0 := by
-          apply foldl_sum_congr
+          apply List.foldl_add_congr
           intro i _hi
           rw [pivot_column_entry E p i]
     _ = c[E.toIsEchelonForm.pivotRow p] := by
@@ -366,7 +335,7 @@ private theorem rowCombination_eq_of_coeffs_eq_on_rank [Lean.Grind.Field R]
       (fun acc i => acc + D.echelon[i][jj] * c[i]) 0 =
     (List.finRange n).foldl
       (fun acc i => acc + D.echelon[i][jj] * d[i]) 0
-  apply foldl_sum_congr
+  apply List.foldl_add_congr
   intro i _hi
   by_cases hirank : i.val < D.rank
   · let r : Fin D.rank := ⟨i.val, hirank⟩
