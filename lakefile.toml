@@ -4,12 +4,12 @@ defaultTargets = ["HexRowReduce"]
 [[require]]
 name = "HexBasic"
 git = "https://github.com/kim-em/hex-basic.git"
-rev = "c9cb6bcb3287ea0870f66c9dfcba08baa08f97f6"
+rev = "f1580d28c2e9ff9e8d4d7cdef9dccbaa17780b03"
 
 [[require]]
 name = "HexMatrix"
 git = "https://github.com/kim-em/hex-matrix.git"
-rev = "d47efb355647c3ab888a035ecfe395be286f2881"
+rev = "972c81f44503301ec8c65f788d4487491dc3f6cc"
 
 [[lean_lib]]
 name = "HexRowReduce"
